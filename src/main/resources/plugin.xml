@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?eclipse version="3.0"?>
+
+<plugin>
+  <extension id="GentleRepairTab" point="org.protege.editor.core.application.WorkspaceTab">
+    <label value="Gentle Repair Tab"/>
+    <class value="de.tudresden.inf.lat.gentlerepair.plugin.GentleRepairTab"/>
+    <index value="Y"/>
+    <editorKitId value="OWLEditorKit"/>
+    <defaultViewConfigFileName value="viewconfig-GentleRepairTab.xml"/>
+  </extension>
+  <extension id="GentleRepairViewComponent" point="org.protege.editor.core.application.ViewComponent">
+    <label value="Gentle Repair View Component" />
+    <class value="de.tudresden.inf.lat.gentlerepair.plugin.GentleRepairViewComponent" />
+    <headerColor value="@org.protege.ontologycolor"/>
+    <category value="@org.protege.ontologycategory" />
+  </extension>
+</plugin>

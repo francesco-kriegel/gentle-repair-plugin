@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<layout>
+  <Component label="Gentle Repair View Component">
+    <Property id="pluginId"
+      value="de.tudresden.inf.lat.gentlerepair.plugin.GentleRepairViewComponent" />
+  </Component>
+</layout>
