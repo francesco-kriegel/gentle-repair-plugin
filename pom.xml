@@ -5,16 +5,54 @@
 
   <groupId>de.tu-dresden.inf.lat</groupId>
   <artifactId>gentle-repair-plugin</artifactId>
-  <version>0.0.1-SNAPSHOT</version>
+  <version>0.0.2-SNAPSHOT</version>
   <packaging>bundle</packaging>
+  <inceptionYear>2019</inceptionYear>
+  <url>https://github.com/francesco-kriegel/gentle-repair-plugin</url>
 
   <name>Gentle Repair Plugin</name>
+
+  <developers>
+    <developer>
+      <name>Francesco Kriegel</name>
+      <organization>Technische Universität Dresden</organization>
+      <organizationUrl>https://tu-dresden.de</organizationUrl>
+      <email>francesco.kriegel@tu-dresden.de</email>
+      <url>https://tu-dresden.de/ing/informatik/thi/lat/die-professur/beschaeftigte/francesco-kriegel/</url>
+    </developer>
+  </developers>
+
+  <!-- <organization> -->
+  <!-- workaround for the license-maven-plugin -->
+  <!-- <name>Francesco Kriegel</name> -->
+  <!-- </organization> -->
+
+  <licenses>
+    <license>
+      <name>GNU GENERAL PUBLIC LICENSE Version 3</name>
+      <url>https://www.gnu.org/licenses/gpl-3.0.html</url>
+      <distribution>repo</distribution>
+    </license>
+  </licenses>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <downloadSources>true</downloadSources>
     <downloadJavadocs>true</downloadJavadocs>
+    <scala.compat.version>2.12</scala.compat.version>
+    <scala.version>${scala.compat.version}.8</scala.version>
   </properties>
+
+  <scm>
+    <url>https://github.com/francesco-kriegel/gentle-repair-plugin/</url>
+    <connection>scm:git:git@github.com:francesco-kriegel/gentle-repair-plugin.git</connection>
+    <developerConnection>scm:git:git@github.com:francesco-kriegel/gentle-repair-plugin.git</developerConnection>
+  </scm>
+
+  <issueManagement>
+    <system>github</system>
+    <url>https://github.com/francesco-kriegel/gentle-repair-plugin/issues/</url>
+  </issueManagement>
 
   <dependencies>
     <dependency>
@@ -42,6 +80,16 @@
       <!-- <scope>system</scope> -->
       <!-- <systemPath>${project.basedir}/lib/conexp-fx-5.5.1-SNAPSHOT-jar-with-dependencies.jar</systemPath> -->
     </dependency>
+    <dependency>
+      <groupId>org.scala-lang</groupId>
+      <artifactId>scala-library</artifactId>
+      <version>${scala.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-lang.modules</groupId>
+      <artifactId>scala-parser-combinators_${scala.compat.version}</artifactId>
+      <version>1.1.0</version>
+    </dependency>
   </dependencies>
 
   <build>
@@ -51,49 +99,144 @@
         <filtering>true</filtering>
       </resource>
     </resources>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.felix</groupId>
+          <artifactId>maven-bundle-plugin</artifactId>
+          <version>4.2.0</version>
+          <extensions>true</extensions>
+          <configuration>
+            <instructions>
+              <Bundle-Activator>org.protege.editor.owl.ProtegeOWL</Bundle-Activator>
+              <Bundle-ClassPath>.</Bundle-ClassPath>
+              <Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
+              <Bundle-Vendor>The Protege Development Team</Bundle-Vendor>
+              <Import-Package>
+                <!-- org.protege.editor.owl.*;version="5.5.0", -->
+                *;resolution:=optional
+              </Import-Package>
+              <!-- <_exportcontents> -->
+              <!-- conexp.fx.core.dl.*, -->
+              <!-- </_exportcontents> -->
+              <Embed-Dependency>
+                conexp-fx,
+                *;scope=compile|runtime
+              </Embed-Dependency>
+              <Embed-Transitive>true</Embed-Transitive>
+            </instructions>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-eclipse-plugin</artifactId>
+          <version>2.10</version>
+          <configuration>
+            <pde>true</pde>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.codehaus.mojo</groupId>
+          <artifactId>license-maven-plugin</artifactId>
+          <version>2.0.0</version>
+          <configuration>
+            <verbose>false</verbose>
+            <addSvnKeyWords>false</addSvnKeyWords>
+            <licenseName>gpl_v3</licenseName>
+            <licenseResolver>${project.baseUri}/src/main/deploy/license</licenseResolver>
+            <force>true</force>
+            <canUpdateDescription>true</canUpdateDescription>
+            <canUpdateCopyright>true</canUpdateCopyright>
+            <canUpdateLicense>true</canUpdateLicense>
+            <roots>
+              <root>src/main/java</root>
+              <root>src/test/java</root>
+            </roots>
+          </configuration>
+          <executions>
+            <execution>
+              <id>add-license-headers</id>
+              <phase>process-sources</phase>
+              <goals>
+                <goal>update-file-header</goal>
+                <goal>update-project-license</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>net.alchim31.maven</groupId>
+          <artifactId>scala-maven-plugin</artifactId>
+          <version>4.1.1</version>
+          <executions>
+            <execution>
+              <id>scala-compile-first</id>
+              <phase>process-resources</phase>
+              <!-- <phase>compile</phase> -->
+              <goals>
+                <goal>add-source</goal>
+                <goal>compile</goal>
+              </goals>
+              <configuration>
+                <args>
+                  <!-- <arg>-make:transitive</arg> -->
+                  <arg>-dependencyfile</arg>
+                  <arg>${project.build.directory}/.scala_dependencies</arg>
+                </args>
+              </configuration>
+            </execution>
+            <execution>
+              <id>scala-test-compile</id>
+              <phase>process-test-resources</phase>
+              <!-- <phase>test-compile</phase> -->
+              <goals>
+                <goal>testCompile</goal>
+              </goals>
+              <configuration>
+                <args>
+                  <!-- <arg>-make:transitive</arg> -->
+                  <arg>-dependencyfile</arg>
+                  <arg>${project.build.directory}/.scala_dependencies</arg>
+                </args>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.8.1</version>
+          <configuration>
+            <source>1.8</source>
+            <target>1.8</target>
+            <encoding>${project.build.sourceEncoding}</encoding>
+            <showDeprecation>false</showDeprecation>
+            <showWarnings>true</showWarnings>
+            <fork>true</fork>
+          </configuration>
+        </plugin>
+      </plugins>
+    </pluginManagement>
     <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.8.1</version>
-        <configuration>
-          <source>1.8</source>
-          <target>1.8</target>
-        </configuration>
-      </plugin>
       <plugin>
         <groupId>org.apache.felix</groupId>
         <artifactId>maven-bundle-plugin</artifactId>
-        <version>4.2.0</version>
-        <extensions>true</extensions>
-        <configuration>
-          <instructions>
-            <Bundle-Activator>org.protege.editor.owl.ProtegeOWL</Bundle-Activator>
-            <Bundle-ClassPath>.</Bundle-ClassPath>
-            <Bundle-SymbolicName>${project.artifactId};singleton:=true</Bundle-SymbolicName>
-            <Bundle-Vendor>The Protege Development Team</Bundle-Vendor>
-            <Import-Package>
-              <!-- org.protege.editor.owl.*;version="5.5.0", -->
-              *;resolution:=optional
-            </Import-Package>
-            <!-- <_exportcontents> -->
-            <!-- conexp.fx.core.dl.*, -->
-            <!-- </_exportcontents> -->
-            <Embed-Dependency>
-              conexp-fx,
-              *;scope=compile|runtime
-            </Embed-Dependency>
-            <Embed-Transitive>true</Embed-Transitive>
-          </instructions>
-        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-eclipse-plugin</artifactId>
-        <version>2.10</version>
-        <configuration>
-          <pde>true</pde>
-        </configuration>
+      </plugin>
+      <!-- <plugin> -->
+      <!-- <groupId>org.codehaus.mojo</groupId> -->
+      <!-- <artifactId>license-maven-plugin</artifactId> -->
+      <!-- </plugin> -->
+      <plugin>
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
       </plugin>
     </plugins>
   </build>

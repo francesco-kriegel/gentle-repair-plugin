@@ -24,3 +24,8 @@ hs_err_pid*
 
 # user-defined exclusions
 .classpath
+.cache-main
+.project
+.settings/*
+target/*
+
