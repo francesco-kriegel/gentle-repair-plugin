@@ -36,8 +36,8 @@ object OWLAxiomWeakeningRelation {
   def classicalWeakeningRelation: OWLAxiomWeakeningRelation =
     (_1, _2, _3, _4, _5, _6) ⇒ Collections.emptySet()
 
-  def semanticELConceptInclusionWeakeningRelation(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation = {
-    return (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
+  def semanticELConceptInclusionWeakeningRelation(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
+    (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
       if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
         throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
       val baseAxioms: Set[OWLAxiom] = Sets.newConcurrentHashSet()
@@ -71,7 +71,7 @@ object OWLAxiomWeakeningRelation {
         })
         nextCandidates.removeAll(processedCandidates)
       }
-      val isWeakerThan: BiPredicate[OWLAxiom, OWLAxiom] = (a, b) ⇒ {
+      def isWeakerThan(a: OWLAxiom, b: OWLAxiom): Boolean = {
         try {
           val bOntology: OWLOntology = ontologyManager.createOntology(Collections.singleton(b))
           val bReasoner: OWLReasoner = reasonerFactory.createNonBufferingReasoner(bOntology)
@@ -82,28 +82,26 @@ object OWLAxiomWeakeningRelation {
           case e: OWLOntologyCreationException ⇒ throw new RuntimeException(e)
         }
       }
-      val isStrictlyWeakerThan: BiPredicate[OWLAxiom, OWLAxiom] =
-        (a, b) ⇒ isWeakerThan.test(a, b) && !isWeakerThan.test(b, a)
+      def isStrictlyWeakerThan(a: OWLAxiom, b: OWLAxiom): Boolean = isWeakerThan(a, b) && !isWeakerThan(b, a)
 
       val nonMinimalWeakenings: Set[OWLAxiom] = Sets.newConcurrentHashSet()
       weakenings.parallelStream().forEach(weakening1 ⇒ {
         weakenings.parallelStream().forEach(weakening2 ⇒ {
           if (!weakening1.equals(weakening2))
-            if (isStrictlyWeakerThan.test(weakening1, weakening2))
+            if (isStrictlyWeakerThan(weakening1, weakening2))
               nonMinimalWeakenings.add(weakening1)
         })
       })
       weakenings.removeAll(nonMinimalWeakenings)
       weakenings
     }
-  }
 
-  def syntacticELConceptInclusionWeakeningRelation(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation = {
-    return (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
+  def syntacticELConceptInclusionWeakeningRelation(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
+    (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
       if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
         throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
       val subClassOfAxiom: OWLSubClassOfAxiom = axiom.asInstanceOf[OWLSubClassOfAxiom]
       throw new RuntimeException("To be implemented.")
     }
-  }
+
 }

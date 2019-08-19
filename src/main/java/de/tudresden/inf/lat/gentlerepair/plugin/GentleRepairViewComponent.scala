@@ -51,25 +51,21 @@ import collection.JavaConverters._
 @SerialVersionUID(-835105430620103724L)
 class GentleRepairViewComponent extends AbstractOWLViewComponent {
 
-  //  private static final Logger     log              = LoggerFactory.getLogger(GentleRepairViewComponent.class)
+  // val log: Logger              = LoggerFactory.getLogger(GentleRepairViewComponent.class)
 
-  var unwantedConsequenceAxiomEditor: OWLGeneralAxiomEditor = _
-  var staticOntologyComboBox: JComboBox[OWLOntology] = _
-  var refutableOntologyComboBox: JComboBox[OWLOntology] = _
-  var repairMethodComboBox: JComboBox[RepairType] = _
-  var owlModelManagerListener: OWLModelManagerListener = _
-
-  var uiPanel: JPanel = _
+  private var unwantedConsequenceAxiomEditor: OWLGeneralAxiomEditor = _
+  private var staticOntologyComboBox: JComboBox[OWLOntology] = _
+  private var refutableOntologyComboBox: JComboBox[OWLOntology] = _
+  private var repairMethodComboBox: JComboBox[RepairType] = _
+  private var owlModelManagerListener: OWLModelManagerListener = _
+  private var uiPanel: JPanel = _
   private val progressBar: JProgressBar = new JProgressBar(0, 100)
-
   private val statusLabel: Label = new Label()
-
   private val configurationLabel: Label = new Label()
   private val repairButton: JButton = new JButton("Repair")
 
-  //  @SuppressWarnings("incomplete-switch")
   @throws(classOf[Exception])
-  override protected def initialiseOWLView(): Unit = {
+  override protected def initialiseOWLView() {
     setLayout(new BorderLayout())
     add(initializeConfigurationPanel(), BorderLayout.NORTH)
     add(initializeRepairPanel(), BorderLayout.CENTER)
@@ -205,7 +201,7 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
     return configurationPanel
   }
 
-  private def checkSelection(): Unit = {
+  private def checkSelection() {
     try {
       val ontologyManager: OWLOntologyManager = getOWLModelManager().getOWLOntologyManager()
       val reasonerFactory: OWLReasonerFactory =
@@ -265,24 +261,24 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
   }
 
   @Override
-  protected def disposeOWLView(): Unit = {
+  protected def disposeOWLView() {
     getOWLModelManager().removeListener(owlModelManagerListener)
     //    log.info("Gentle Repair View Component disposed")
   }
 
-  private def startRepair(): Unit = {
+  private def startRepair() {
     configurationLabel.setText("")
     repairButton.setEnabled(false)
     //    progressBar.setValue(50)
     //    progressBar.setIndeterminate(true)
     progressBar.setValue(0)
-    val progressConsumer: Consumer[Integer] = progress ⇒ {
+    def progressConsumer(progress: Integer) {
       Util.runOnProtegeThread(() ⇒ {
         progressBar.setValue(progress)
       }, true)
     }
     statusLabel.setAlignment(Label.RIGHT)
-    val statusConsumer: Consumer[String] = status ⇒ {
+    def statusConsumer(status: String) {
       Util.runOnProtegeThread(() ⇒ {
         statusLabel.setText(status)
       }, true)
@@ -298,30 +294,30 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
       val unwantedConsequence: OWLAxiom = unwantedConsequenceAxiomEditor.getEditedObject()
 
       val weakeningRelation: AtomicReference[OWLAxiomWeakeningRelation] = new AtomicReference()
-      val axiomFromJustificationSelector: AtomicReference[Function[Set[OWLAxiom], Future[OWLAxiom]]] =
+      val axiomFromJustificationSelector: AtomicReference[(Set[OWLAxiom]) ⇒ Future[OWLAxiom]] =
         new AtomicReference()
-      val axiomFromWeakeningsSelector: AtomicReference[Function[Set[OWLAxiom], Future[OWLAxiom]]] =
+      val axiomFromWeakeningsSelector: AtomicReference[(Set[OWLAxiom]) ⇒ Future[OWLAxiom]] =
         new AtomicReference()
 
       repairMethodComboBox.getSelectedItem().asInstanceOf[RepairType] match {
         case RepairType.CLASSICAL_REPAIR_RANDOM ⇒
           weakeningRelation.set(OWLAxiomWeakeningRelation.classicalWeakeningRelation)
-          axiomFromJustificationSelector.set(Util.randomSelector())
-          axiomFromWeakeningsSelector.set(Util.randomSelector())
-        //          break
+          axiomFromJustificationSelector.set(Util.randomSelector)
+          axiomFromWeakeningsSelector.set(Util.randomSelector)
+        // break
         case RepairType.CLASSICAL_REPAIR_USER ⇒
           weakeningRelation.set(OWLAxiomWeakeningRelation.classicalWeakeningRelation)
           axiomFromJustificationSelector.set(axiomSelector("Selection an axiom from the below justification.", uiPanel))
-          axiomFromWeakeningsSelector.set(Util.randomSelector())
-        //          break
+          axiomFromWeakeningsSelector.set(Util.randomSelector)
+        // break
         case RepairType.MODIFIED_GENTLE_REPAIR_SEMANTIC_RANDOM ⇒
           weakeningRelation
             .set(
               OWLAxiomWeakeningRelation
                 .semanticELConceptInclusionWeakeningRelation(getOWLDataFactory()))
-          axiomFromJustificationSelector.set(Util.randomSelector())
-          axiomFromWeakeningsSelector.set(Util.randomSelector())
-        //          break
+          axiomFromJustificationSelector.set(Util.randomSelector)
+          axiomFromWeakeningsSelector.set(Util.randomSelector)
+        // break
         case RepairType.MODIFIED_GENTLE_REPAIR_SEMANTIC_USER ⇒
           weakeningRelation
             .set(
@@ -329,11 +325,9 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
                 .semanticELConceptInclusionWeakeningRelation(getOWLDataFactory()))
           axiomFromJustificationSelector.set(axiomSelector("Selection an axiom from the below justification.", uiPanel))
           axiomFromWeakeningsSelector.set(axiomSelector("Selection a weakened axiom from the below list.", uiPanel))
-        //          break
-        //      case MODIFIED_GENTLE_REPAIR_SYNTACTIC_RANDOM =>
-        //      case MODIFIED_GENTLE_REPAIR_SYNTACTIC_USER =>
-        //      case INTERACTIVE_GENTLE_REPAIR =>
-        //        throw new RuntimeException("Not implemented")
+        // break
+        // case RepairType.MODIFIED_GENTLE_REPAIR_SYNTACTIC_RANDOM | RepairType.MODIFIED_GENTLE_REPAIR_SYNTACTIC_USER | RepairType.INTERACTIVE_GENTLE_REPAIR =>
+        // throw new RuntimeException("Not implemented")
       }
       new Thread(() ⇒ {
         try {
@@ -360,60 +354,56 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
     }
   }
 
-  private def axiomSelector(question: String, panel: JPanel): Function[Set[OWLAxiom], Future[OWLAxiom]] = {
-    return set ⇒ {
-      val _isDone: AtomicBoolean = new AtomicBoolean(false)
-      val selection: AtomicReference[OWLAxiom] = new AtomicReference()
-      Util.runOnProtegeThread(() ⇒ {
-        val axiomListFrame: AxiomListFrame = new AxiomListFrame(getOWLEditorKit())
-        val axiomList: OWLFrameList[Set[OWLAxiom]] =
-          new OWLFrameList[Set[OWLAxiom]](getOWLEditorKit(), axiomListFrame) {
-            // private static final long serialVersionUID = -4628615359964268695L
-            override protected def getButtons(value: Object): List[MListButton] = Collections.emptyList()
-          }
-        axiomList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
-        axiomList.setRootObject(set)
-        val axiomListScrollPane: JScrollPane = new JScrollPane(axiomList)
-        val submitButton: JButton = new JButton("Submit selection")
-        panel.setLayout(new BorderLayout())
-        panel.add(new JLabel(question), BorderLayout.NORTH)
-        val axiomPanel: JPanel = new JPanel()
-        axiomPanel.setLayout(new BoxLayout(axiomPanel, BoxLayout.X_AXIS))
-        axiomPanel.add(axiomListScrollPane)
-        axiomPanel.add(Box.createHorizontalStrut(10))
-        axiomPanel.add(submitButton)
-        panel.add(axiomPanel, BorderLayout.CENTER)
-        submitButton.addActionListener(action ⇒ {
-          if (!axiomList.isSelectionEmpty()) {
-            selection.set(axiomList.getSelectedValue().asInstanceOf[AxiomListFrameSectionRow].getAxiom())
-            panel.removeAll()
-            axiomListFrame.dispose()
-            axiomList.dispose()
-            panel.repaint()
-            panel.validate()
-            _isDone.set(true)
-          }
-        })
-        panel.repaint()
-        panel.validate()
-      }, true)
-      new Future[OWLAxiom]() {
+  private def axiomSelector(question: String, panel: JPanel)(set: Set[OWLAxiom]): Future[OWLAxiom] = {
+    val _isDone: AtomicBoolean = new AtomicBoolean(false)
+    val selection: AtomicReference[OWLAxiom] = new AtomicReference()
+    Util.runOnProtegeThread(() ⇒ {
+      val axiomListFrame: AxiomListFrame = new AxiomListFrame(getOWLEditorKit())
+      val axiomList: OWLFrameList[Set[OWLAxiom]] =
+        new OWLFrameList[Set[OWLAxiom]](getOWLEditorKit(), axiomListFrame) {
+          // private static final long serialVersionUID = -4628615359964268695L
+          override protected def getButtons(value: Object): List[MListButton] = Collections.emptyList()
+        }
+      axiomList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
+      axiomList.setRootObject(set)
+      val axiomListScrollPane: JScrollPane = new JScrollPane(axiomList)
+      val submitButton: JButton = new JButton("Submit selection")
+      panel.setLayout(new BorderLayout())
+      panel.add(new JLabel(question), BorderLayout.NORTH)
+      val axiomPanel: JPanel = new JPanel()
+      axiomPanel.setLayout(new BoxLayout(axiomPanel, BoxLayout.X_AXIS))
+      axiomPanel.add(axiomListScrollPane)
+      axiomPanel.add(Box.createHorizontalStrut(10))
+      axiomPanel.add(submitButton)
+      panel.add(axiomPanel, BorderLayout.CENTER)
+      submitButton.addActionListener(action ⇒ {
+        if (!axiomList.isSelectionEmpty()) {
+          selection.set(axiomList.getSelectedValue().asInstanceOf[AxiomListFrameSectionRow].getAxiom())
+          panel.removeAll()
+          axiomListFrame.dispose()
+          axiomList.dispose()
+          panel.repaint()
+          panel.validate()
+          _isDone.set(true)
+        }
+      })
+      panel.repaint()
+      panel.validate()
+    }, true)
+    new Future[OWLAxiom]() {
 
-        override def cancel(mayInterruptIfRunning: Boolean): Boolean = throw new RuntimeException("Not supported")
+      override def cancel(mayInterruptIfRunning: Boolean): Boolean = throw new RuntimeException("Not supported")
+      override def isCancelled(): Boolean = false
+      override def isDone(): Boolean = _isDone.get
 
-        override def isCancelled(): Boolean = false
+      @throws(classOf[InterruptedException])
+      @throws(classOf[ExecutionException])
+      override def get(): OWLAxiom = selection.get()
 
-        override def isDone(): Boolean = _isDone.get
-
-        @throws(classOf[InterruptedException])
-        @throws(classOf[ExecutionException])
-        override def get(): OWLAxiom = selection.get()
-
-        @throws(classOf[InterruptedException])
-        @throws(classOf[ExecutionException])
-        @throws(classOf[TimeoutException])
-        override def get(timeout: Long, unit: TimeUnit): OWLAxiom = selection.get()
-      }
+      @throws(classOf[InterruptedException])
+      @throws(classOf[ExecutionException])
+      @throws(classOf[TimeoutException])
+      override def get(timeout: Long, unit: TimeUnit): OWLAxiom = selection.get()
     }
   }
 

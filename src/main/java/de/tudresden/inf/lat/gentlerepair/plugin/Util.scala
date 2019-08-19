@@ -95,7 +95,7 @@ import org.semanticweb.owlapi.util.OWLAxiomSearchFilter
 
 object Util {
 
-  val random: Random = new Random()
+  private val random: Random = new Random()
 
   def getRandomElement[E](c: Collection[E]): Optional[E] = {
     if (c.isEmpty())
@@ -103,15 +103,13 @@ object Util {
     return c.stream().skip(random.nextInt(c.size())).findFirst()
   }
 
-  def randomSelector[E >: Null <: AnyRef](): Function[Set[E], Future[E]] = {
-    return set ⇒ new Future[E]() {
+  def randomSelector[E >: Null <: AnyRef](set: Set[E]): Future[E] =
+    new Future[E]() {
 
       private val result: E = getRandomElement(set).orElse(null)
 
       override def cancel(mayInterruptIfRunning: Boolean): Boolean = false
-
       override def isCancelled(): Boolean = false
-
       override def isDone(): Boolean = true
 
       @throws(classOf[InterruptedException])
@@ -123,9 +121,8 @@ object Util {
       @throws(classOf[TimeoutException])
       override def get(timeout: Long, unit: TimeUnit): E = result
     }
-  }
 
-  def runOnProtegeThread(runnable: Runnable, sync: Boolean): Unit = {
+  def runOnProtegeThread(runnable: Runnable, sync: Boolean) {
     try {
       if (sync)
         SwingUtilities.invokeAndWait(runnable)

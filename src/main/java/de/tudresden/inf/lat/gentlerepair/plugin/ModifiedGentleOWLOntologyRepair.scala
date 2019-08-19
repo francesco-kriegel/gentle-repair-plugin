@@ -17,13 +17,23 @@ import org.semanticweb.owlapi.reasoner.OWLReasoner
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory
 
 @throws(classOf[IllegalArgumentException])
-class ModifiedGentleOWLOntologyRepair(ontologyManager: OWLOntologyManager, reasonerFactory: OWLReasonerFactory, staticOntology: OWLOntology, refutableOntology: OWLOntology, unwantedConsequence: OWLAxiom, weakeningRelation: OWLAxiomWeakeningRelation, axiomFromJustificationSelector: Function[Set[OWLAxiom], Future[OWLAxiom]], axiomFromWeakeningsSelector: Function[Set[OWLAxiom], Future[OWLAxiom]], progressConsumer: Consumer[Integer], statusConsumer: Consumer[String]) {
+class ModifiedGentleOWLOntologyRepair(
+  ontologyManager:                OWLOntologyManager,
+  reasonerFactory:                OWLReasonerFactory,
+  staticOntology:                 OWLOntology,
+  refutableOntology:              OWLOntology,
+  unwantedConsequence:            OWLAxiom,
+  weakeningRelation:              OWLAxiomWeakeningRelation,
+  axiomFromJustificationSelector: (Set[OWLAxiom]) ⇒ Future[OWLAxiom],
+  axiomFromWeakeningsSelector:    (Set[OWLAxiom]) ⇒ Future[OWLAxiom],
+  progressConsumer:               (Integer) ⇒ Unit,
+  statusConsumer:                 (String) ⇒ Unit) {
 
   checkArguments()
 
   @throws(classOf[IllegalArgumentException])
-  private def checkArguments(): Unit = {
-    statusConsumer.accept("Deciding if the unwanted axiom is entailed by the static ontology...")
+  private def checkArguments() {
+    statusConsumer("Deciding if the unwanted axiom is entailed by the static ontology...")
     val reasoner1: OWLReasoner = reasonerFactory.createNonBufferingReasoner(staticOntology)
     if (reasoner1.isEntailed(unwantedConsequence)) {
       reasoner1.dispose()
@@ -31,8 +41,7 @@ class ModifiedGentleOWLOntologyRepair(ontologyManager: OWLOntologyManager, reaso
     }
     reasoner1.dispose()
 
-    statusConsumer
-      .accept("Deciding if the unwanted axiom is entailed by the union of the static and the refutable ontology...")
+    statusConsumer("Deciding if the unwanted axiom is entailed by the union of the static and the refutable ontology...")
     try {
       val unionOntology: OWLOntology = ontologyManager.createOntology()
       ontologyManager.addAxioms(unionOntology, staticOntology.getAxioms())
@@ -47,13 +56,13 @@ class ModifiedGentleOWLOntologyRepair(ontologyManager: OWLOntologyManager, reaso
     } catch {
       case e: OWLOntologyCreationException ⇒ throw new RuntimeException(e)
     }
-    statusConsumer.accept("The input is well-formed and the repairing can now be started.")
-    progressConsumer.accept(10)
+    statusConsumer("The input is well-formed and the repairing can now be started.")
+    progressConsumer(10)
   }
 
   @throws(classOf[OWLException])
   private def getOneMinimalJustification(): Set[OWLAxiom] = {
-    statusConsumer.accept("Computing one minimal justification...")
+    statusConsumer("Computing one minimal justification...")
     val justification: Set[OWLAxiom] = new HashSet(refutableOntology.getAxioms(AxiomType.SUBCLASS_OF))
     if (!isEntailed(justification, unwantedConsequence))
       return null
@@ -84,23 +93,23 @@ class ModifiedGentleOWLOntologyRepair(ontologyManager: OWLOntologyManager, reaso
   }
 
   @throws(classOf[OWLException])
-  def repair(): Unit = {
+  def repair() {
     var progress: Int = 10
     var justification: Set[OWLAxiom] = getOneMinimalJustification()
     while (justification != null) {
       try {
-        statusConsumer.accept("Choosing an axiom from the justification...")
-        val axiomFuture: Future[OWLAxiom] = axiomFromJustificationSelector.apply(justification)
+        statusConsumer("Choosing an axiom from the justification...")
+        val axiomFuture: Future[OWLAxiom] = axiomFromJustificationSelector(justification)
         while (!axiomFuture.isDone())
           Thread.sleep(100)
         val axiom: OWLAxiom = axiomFuture.get()
         ontologyManager.removeAxiom(refutableOntology, axiom)
-        statusConsumer.accept("Computing the maximally strong weakenings...")
+        statusConsumer("Computing the maximally strong weakenings...")
         val weakenings: Set[OWLAxiom] = weakeningRelation
           .getWeakenings(ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence)
         if (!weakenings.isEmpty()) {
-          statusConsumer.accept("Choosing a maximally strong weakening...")
-          val weakeningFuture: Future[OWLAxiom] = axiomFromWeakeningsSelector.apply(weakenings)
+          statusConsumer("Choosing a maximally strong weakening...")
+          val weakeningFuture: Future[OWLAxiom] = axiomFromWeakeningsSelector(weakenings)
           while (!weakeningFuture.isDone())
             Thread.sleep(100)
           ontologyManager.addAxiom(refutableOntology, weakeningFuture.get())
@@ -109,11 +118,11 @@ class ModifiedGentleOWLOntologyRepair(ontologyManager: OWLOntologyManager, reaso
         case e @ (_: InterruptedException | _: ExecutionException) ⇒ throw new RuntimeException(e)
       }
       progress = Math.min(90, progress + 5)
-      progressConsumer.accept(progress)
+      progressConsumer(progress)
       justification = getOneMinimalJustification()
     }
-    statusConsumer.accept("The ontology has been repaired.")
-    progressConsumer.accept(100)
+    statusConsumer("The ontology has been repaired.")
+    progressConsumer(100)
   }
 
 }
