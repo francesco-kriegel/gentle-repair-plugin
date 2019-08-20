@@ -64,6 +64,8 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
   private val configurationLabel: Label = new Label()
   private val repairButton: JButton = new JButton("Repair")
 
+  private var isRepairing: Boolean = false
+
   @throws(classOf[Exception])
   override protected def initialiseOWLView() {
     setLayout(new BorderLayout())
@@ -92,14 +94,15 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
       new JScrollPane(unwantedConsequenceAxiomEditor.getEditorComponent())
 
     owlModelManagerListener = event ⇒ {
-      event.getType() match {
-        case EventType.ACTIVE_ONTOLOGY_CHANGED | EventType.ONTOLOGY_CREATED | EventType.ONTOLOGY_LOADED ⇒
-          val staticOntologies: Vector[OWLOntology] = new Vector(getOWLModelManager().getOntologies())
-          staticOntologies.add(0, Util.EMPTY_ONTOLOGY)
-          staticOntologyComboBox.setModel(new DefaultComboBoxModel[OWLOntology](staticOntologies))
-          refutableOntologyComboBox
-            .setModel(new DefaultComboBoxModel[OWLOntology](new Vector(getOWLModelManager().getOntologies())))
-      }
+      if (!isRepairing)
+        event.getType() match {
+          case EventType.ACTIVE_ONTOLOGY_CHANGED | EventType.ONTOLOGY_CREATED | EventType.ONTOLOGY_LOADED ⇒
+            val staticOntologies: Vector[OWLOntology] = new Vector(getOWLModelManager().getOntologies())
+            staticOntologies.add(0, Util.EMPTY_ONTOLOGY)
+            staticOntologyComboBox.setModel(new DefaultComboBoxModel[OWLOntology](staticOntologies))
+            refutableOntologyComboBox
+              .setModel(new DefaultComboBoxModel[OWLOntology](new Vector(getOWLModelManager().getOntologies())))
+        }
     }
     getOWLModelManager().addListener(owlModelManagerListener)
     owlModelManagerListener.handleChange(new OWLModelManagerChangeEvent(null, EventType.ONTOLOGY_LOADED))
@@ -267,8 +270,13 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
   }
 
   private def startRepair() {
+    isRepairing = true
     configurationLabel.setText("")
     repairButton.setEnabled(false)
+    staticOntologyComboBox.setEnabled(false)
+    refutableOntologyComboBox.setEnabled(false)
+    repairMethodComboBox.setEnabled(false)
+    unwantedConsequenceAxiomEditor.getEditorComponent().asInstanceOf[JPanel].getComponents().foreach(component ⇒ component.setEnabled(false))
     //    progressBar.setValue(50)
     //    progressBar.setIndeterminate(true)
     progressBar.setValue(0)
@@ -344,6 +352,11 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
             statusConsumer).repair()
           progressBar.setIndeterminate(false)
           progressBar.setValue(100)
+          staticOntologyComboBox.setEnabled(true)
+          refutableOntologyComboBox.setEnabled(true)
+          repairMethodComboBox.setEnabled(true)
+          unwantedConsequenceAxiomEditor.getEditorComponent().asInstanceOf[JPanel].getComponents().foreach(component ⇒ component.setEnabled(true))
+          isRepairing = false
           checkSelection()
         } catch {
           case e @ (_: IllegalArgumentException | _: OWLException) ⇒ throw new RuntimeException(e)
@@ -380,8 +393,8 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
         if (!axiomList.isSelectionEmpty()) {
           selection.set(axiomList.getSelectedValue().asInstanceOf[AxiomListFrameSectionRow].getAxiom())
           panel.removeAll()
-          axiomListFrame.dispose()
           axiomList.dispose()
+          axiomListFrame.dispose()
           panel.repaint()
           panel.validate()
           _isDone.set(true)

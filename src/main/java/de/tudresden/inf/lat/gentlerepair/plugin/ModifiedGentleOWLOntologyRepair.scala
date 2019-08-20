@@ -15,6 +15,7 @@ import org.semanticweb.owlapi.model.OWLOntologyCreationException
 import org.semanticweb.owlapi.model.OWLOntologyManager
 import org.semanticweb.owlapi.reasoner.OWLReasoner
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory
+import java.util.Optional
 
 @throws(classOf[IllegalArgumentException])
 class ModifiedGentleOWLOntologyRepair(
@@ -34,7 +35,7 @@ class ModifiedGentleOWLOntologyRepair(
   @throws(classOf[IllegalArgumentException])
   private def checkArguments() {
     statusConsumer("Deciding if the unwanted axiom is entailed by the static ontology...")
-    val reasoner1: OWLReasoner = reasonerFactory.createNonBufferingReasoner(staticOntology)
+    val reasoner1: OWLReasoner = reasonerFactory.createReasoner(staticOntology)
     if (reasoner1.isEntailed(unwantedConsequence)) {
       reasoner1.dispose()
       throw new IllegalArgumentException("The axiom must not be entailed by the static ontology.")
@@ -46,7 +47,7 @@ class ModifiedGentleOWLOntologyRepair(
       val unionOntology: OWLOntology = ontologyManager.createOntology()
       ontologyManager.addAxioms(unionOntology, staticOntology.getAxioms())
       ontologyManager.addAxioms(unionOntology, refutableOntology.getAxioms())
-      val reasoner2: OWLReasoner = reasonerFactory.createNonBufferingReasoner(unionOntology)
+      val reasoner2: OWLReasoner = reasonerFactory.createReasoner(unionOntology)
       if (!reasoner2.isEntailed(unwantedConsequence)) {
         reasoner2.dispose()
         throw new IllegalArgumentException(
@@ -64,23 +65,20 @@ class ModifiedGentleOWLOntologyRepair(
   private def getOneMinimalJustification(): Set[OWLAxiom] = {
     statusConsumer("Computing one minimal justification...")
     val justification: Set[OWLAxiom] = new HashSet(refutableOntology.getAxioms(AxiomType.SUBCLASS_OF))
+    val axioms: Set[OWLAxiom] = new HashSet(justification)
     if (!isEntailed(justification, unwantedConsequence))
       return null
-    var _isEntailed: Boolean = true
-    while (_isEntailed) {
-      var superfluousAxiom: OWLAxiom = Util.getRandomElement(justification).get()
-      if (superfluousAxiom == null)
-        throw new RuntimeException()
-      justification.remove(superfluousAxiom)
-      if (isEntailed(justification, unwantedConsequence))
-        _isEntailed = true
-      else {
-        _isEntailed = false
-        justification.add(superfluousAxiom)
-      }
+    var axiom: Optional[OWLAxiom] = Util.getRandomElement(axioms)
+    while (axiom.isPresent()) {
+      axioms.remove(axiom.get())
+      justification.remove(axiom.get())
+      if (!isEntailed(justification, unwantedConsequence))
+        justification.add(axiom.get())
+      axiom = Util.getRandomElement(axioms)
     }
     return justification
   }
+
   @throws(classOf[OWLException])
   private def isEntailed(refutableAxioms: Set[OWLAxiom], unwantedConsequence: OWLAxiom): Boolean = {
     val unionOntology: OWLOntology = ontologyManager.createOntology()

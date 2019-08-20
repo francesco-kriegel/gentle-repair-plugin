@@ -55,16 +55,15 @@ object OWLAxiomWeakeningRelation {
             val weakenedAxiom: OWLSubClassOfAxiom =
               dataFactory.getOWLSubClassOfAxiom(subClassOfAxiom.getSubClass(), candidate.toOWLClassExpression())
             val weakenedOntology: OWLOntology = ontologyManager.createOntology()
-            //            weakenedOntology.getAxioms().addAll(baseAxioms)
-            //            weakenedOntology.getAxioms().add(weakenedAxiom)
             ontologyManager.addAxioms(weakenedOntology, baseAxioms)
             ontologyManager.addAxiom(weakenedOntology, weakenedAxiom)
-            val reasoner: OWLReasoner = reasonerFactory.createNonBufferingReasoner(weakenedOntology)
+            val reasoner: OWLReasoner = reasonerFactory.createReasoner(weakenedOntology)
             if (reasoner.isEntailed(unwantedConsequence))
               nextCandidates.addAll(candidate.upperNeighborsReduced())
             else
               weakenings.add(weakenedAxiom)
             reasoner.dispose()
+            ontologyManager.removeOntology(weakenedOntology)
           } catch {
             case e: OWLOntologyCreationException ⇒ throw new RuntimeException(e)
           }
@@ -74,10 +73,11 @@ object OWLAxiomWeakeningRelation {
       def isWeakerThan(a: OWLAxiom, b: OWLAxiom): Boolean = {
         try {
           val bOntology: OWLOntology = ontologyManager.createOntology(Collections.singleton(b))
-          val bReasoner: OWLReasoner = reasonerFactory.createNonBufferingReasoner(bOntology)
+          val bReasoner: OWLReasoner = reasonerFactory.createReasoner(bOntology)
           val result: Boolean = bReasoner.isEntailed(a)
           bReasoner.dispose()
-          result
+          ontologyManager.removeOntology(bOntology)
+          return result
         } catch {
           case e: OWLOntologyCreationException ⇒ throw new RuntimeException(e)
         }
