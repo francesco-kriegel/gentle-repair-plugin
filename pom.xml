@@ -5,12 +5,43 @@
 
   <groupId>de.tu-dresden.inf.lat</groupId>
   <artifactId>gentle-repair-plugin</artifactId>
-  <version>0.0.2-SNAPSHOT</version>
+  <version>0.0.3-SNAPSHOT</version>
   <packaging>bundle</packaging>
   <inceptionYear>2019</inceptionYear>
   <url>https://github.com/francesco-kriegel/gentle-repair-plugin</url>
 
   <name>Gentle Repair Plugin</name>
+
+  <contributors>
+    <contributor>
+      <name>Franz Baader</name>
+      <organization>Technische Universität Dresden</organization>
+      <organizationUrl>https://tu-dresden.de</organizationUrl>
+      <email>franz.baader@tu-dresden.de</email>
+      <url>https://tu-dresden.de/ing/informatik/thi/lat/die-professur/franz-baader</url>
+    </contributor>
+    <contributor>
+      <name>Francesco Kriegel</name>
+      <organization>Technische Universität Dresden</organization>
+      <organizationUrl>https://tu-dresden.de</organizationUrl>
+      <email>francesco.kriegel@tu-dresden.de</email>
+      <url>https://tu-dresden.de/ing/informatik/thi/lat/die-professur/beschaeftigte/francesco-kriegel/</url>
+    </contributor>
+    <contributor>
+      <name>Adrian Nuradiansyah</name>
+      <organization>Technische Universität Dresden</organization>
+      <organizationUrl>https://tu-dresden.de</organizationUrl>
+      <email>adrian.nuradiansyah@tu-dresden.de</email>
+      <url>https://lat.inf.tu-dresden.de/~adrian/</url>
+    </contributor>
+    <contributor>
+      <name>Rafael Peñaloza</name>
+      <organization>Free University of Bozen-Bolzano</organization>
+      <organizationUrl>https://www.unibz.it</organizationUrl>
+      <email>rafael.penaloza@unibz.it</email>
+      <url>http://www.inf.unibz.it/~penaloza/</url>
+    </contributor>
+  </contributors>
 
   <developers>
     <developer>
