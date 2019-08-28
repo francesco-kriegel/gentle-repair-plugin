@@ -1,11 +1,10 @@
 package de.tudresden.inf.lat.gentlerepair.plugin
 
 import java.util.HashSet
+import java.util.Optional
 import java.util.Set
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.Future
-import java.util.function.Consumer
-import java.util.function.Function
 
 import org.semanticweb.owlapi.model.AxiomType
 import org.semanticweb.owlapi.model.OWLAxiom
@@ -15,7 +14,6 @@ import org.semanticweb.owlapi.model.OWLOntologyCreationException
 import org.semanticweb.owlapi.model.OWLOntologyManager
 import org.semanticweb.owlapi.reasoner.OWLReasoner
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory
-import java.util.Optional
 
 @throws(classOf[IllegalArgumentException])
 class ModifiedGentleOWLOntologyRepair(

@@ -12,22 +12,6 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
-import java.util.function.Consumer
-import java.util.function.Function
-
-import javax.swing.Box
-import javax.swing.BoxLayout
-import javax.swing.DefaultComboBoxModel
-import javax.swing.GroupLayout
-import javax.swing.GroupLayout.Alignment
-import javax.swing.JButton
-import javax.swing.JComboBox
-import javax.swing.JLabel
-import javax.swing.JPanel
-import javax.swing.JProgressBar
-import javax.swing.JScrollPane
-import javax.swing.ListSelectionModel
-import javax.swing.SwingConstants
 
 import org.protege.editor.core.ui.list.MListButton
 import org.protege.editor.owl.model.event.EventType
@@ -46,7 +30,19 @@ import org.semanticweb.owlapi.model.OWLOntologyManager
 import org.semanticweb.owlapi.reasoner.OWLReasoner
 import org.semanticweb.owlapi.reasoner.OWLReasonerFactory
 
-import collection.JavaConverters._
+import javax.swing.Box
+import javax.swing.BoxLayout
+import javax.swing.DefaultComboBoxModel
+import javax.swing.GroupLayout
+import javax.swing.GroupLayout.Alignment
+import javax.swing.JButton
+import javax.swing.JComboBox
+import javax.swing.JLabel
+import javax.swing.JPanel
+import javax.swing.JProgressBar
+import javax.swing.JScrollPane
+import javax.swing.ListSelectionModel
+import javax.swing.SwingConstants
 
 @SerialVersionUID(-835105430620103724L)
 class GentleRepairViewComponent extends AbstractOWLViewComponent {
@@ -322,7 +318,7 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
           weakeningRelation
             .set(
               OWLAxiomWeakeningRelation
-                .semanticELConceptInclusionWeakeningRelation(getOWLDataFactory()))
+                .semanticELConceptInclusionWeakeningRelation3(getOWLDataFactory()))
           axiomFromJustificationSelector.set(Util.randomSelector)
           axiomFromWeakeningsSelector.set(Util.randomSelector)
         // break
@@ -330,7 +326,7 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
           weakeningRelation
             .set(
               OWLAxiomWeakeningRelation
-                .semanticELConceptInclusionWeakeningRelation(getOWLDataFactory()))
+                .semanticELConceptInclusionWeakeningRelation3(getOWLDataFactory()))
           axiomFromJustificationSelector.set(axiomSelector("Selection an axiom from the below justification.", uiPanel))
           axiomFromWeakeningsSelector.set(axiomSelector("Selection a weakened axiom from the below list.", uiPanel))
         // break
