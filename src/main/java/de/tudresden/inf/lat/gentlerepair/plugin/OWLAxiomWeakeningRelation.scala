@@ -20,6 +20,8 @@ import com.google.common.collect.Sets
 import conexp.fx.core.collections.relation.MatrixRelation
 import conexp.fx.core.dl.ELConceptDescription
 import conexp.fx.core.dl.ELConceptInclusion
+import conexp.fx.core.util.Meter
+import org.semanticweb.owlapi.model.OWLClassExpression
 
 trait OWLAxiomWeakeningRelation {
 
@@ -169,6 +171,9 @@ object OWLAxiomWeakeningRelation {
     (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
       if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
         throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
+
+      val timer: Meter[java.lang.Long] = Meter.newNanoStopWatch
+
       val baseAxioms: java.util.Set[OWLAxiom] = Sets.newConcurrentHashSet()
       baseAxioms.addAll(staticOntology.getAxioms())
       baseAxioms.addAll(justification)
@@ -244,6 +249,8 @@ object OWLAxiomWeakeningRelation {
       })
       weakenings.removeAll(nonMinimalWeakenings)
 
+      println("computation time of method 3: " + timer.measureAndFormat())
+
       val weakenings4: java.util.Set[OWLAxiom] = semanticELConceptInclusionWeakeningRelation4(dataFactory).getWeakenings(ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence)
       println()
       println("same weakenings found: " + ((weakenings containsAll weakenings4) && (weakenings4 containsAll weakenings)))
@@ -260,114 +267,162 @@ object OWLAxiomWeakeningRelation {
       if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
         throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
 
+      val timer: Meter[java.lang.Long] = Meter.newNanoStopWatch
+
       val subClassOfAxiom: OWLSubClassOfAxiom = axiom.asInstanceOf[OWLSubClassOfAxiom]
       val premise: ELConceptDescription = ELConceptDescription.of(subClassOfAxiom.getSubClass)
       val conclusion: ELConceptDescription = ELConceptDescription.of(subClassOfAxiom.getSuperClass)
 
-      val deconstructedAxiom: java.util.Set[OWLSubClassOfAxiom] = new java.util.HashSet
-      val n: AtomicInteger = new AtomicInteger(0)
-      val x0: ELConceptDescription = ELConceptDescription.conceptName(IRI.create("X(" + conclusion.toString + "," + n.getAndIncrement + ")"))
-      val baseAxiom: OWLSubClassOfAxiom = new ELConceptInclusion(premise, x0).toOWLSubClassOfAxiom
-      deconstructedAxiom add baseAxiom
-      def deconstruct(xm: ELConceptDescription, sub: ELConceptDescription) {
-        sub.getConceptNames.forEach(a ⇒ deconstructedAxiom add new ELConceptInclusion(xm, ELConceptDescription.conceptName(a)).toOWLSubClassOfAxiom)
-        sub.getExistentialRestrictions.entries.forEach(er ⇒ {
-          val role: IRI = er.getKey
-          val filler: ELConceptDescription = er.getValue
-          val xn: ELConceptDescription = ELConceptDescription.conceptName(IRI.create("X(" + conclusion.toString() + "," + n.getAndIncrement + ")"))
-          deconstructedAxiom add new ELConceptInclusion(xm, ELConceptDescription.existentialRestriction(role, xn)).toOWLSubClassOfAxiom
-          deconstruct(xn, filler)
+      def iterate(rhs: ELConceptDescription): java.util.Set[ELConceptDescription] = {
+        val deconstructedAxiom: java.util.Set[OWLSubClassOfAxiom] = new java.util.HashSet
+        val n: AtomicInteger = new AtomicInteger(0)
+        val x0: ELConceptDescription = ELConceptDescription.conceptName(IRI.create("X(" + rhs.toString + "," + n.getAndIncrement + ")"))
+        val baseAxiom: OWLSubClassOfAxiom = new ELConceptInclusion(premise, x0).toOWLSubClassOfAxiom
+        deconstructedAxiom add baseAxiom
+        def deconstruct(xm: ELConceptDescription, sub: ELConceptDescription) {
+          sub.getConceptNames.forEach(a ⇒ deconstructedAxiom add new ELConceptInclusion(xm, ELConceptDescription.conceptName(a)).toOWLSubClassOfAxiom)
+          sub.getExistentialRestrictions.entries.forEach(er ⇒ {
+            val role: IRI = er.getKey
+            val filler: ELConceptDescription = er.getValue
+            val xn: ELConceptDescription = ELConceptDescription.conceptName(IRI.create("X(" + rhs.toString() + "," + n.getAndIncrement + ")"))
+            deconstructedAxiom add new ELConceptInclusion(xm, ELConceptDescription.existentialRestriction(role, xn)).toOWLSubClassOfAxiom
+            deconstruct(xn, filler)
+          })
+        }
+        deconstruct(x0, rhs)
+
+        val axiomJustifications: java.util.Set[java.util.Set[OWLSubClassOfAxiom]] = Sets.newConcurrentHashSet()
+        val nextCandidates: java.util.Set[java.util.Set[OWLSubClassOfAxiom]] = Sets.newConcurrentHashSet()
+        nextCandidates add java.util.Collections.singleton(baseAxiom)
+        while (!nextCandidates.isEmpty()) {
+          val currentCandidates: java.util.Set[java.util.Set[OWLSubClassOfAxiom]] = new java.util.HashSet(nextCandidates)
+          nextCandidates.clear
+          currentCandidates.stream().parallel().forEach(candidate ⇒ {
+            val ontology: OWLOntology = ontologyManager.createOntology()
+            ontologyManager.addAxioms(ontology, staticOntology.getAxioms)
+            ontologyManager.addAxioms(ontology, justification)
+            ontologyManager.removeAxiom(ontology, axiom)
+            ontologyManager.addAxioms(ontology, candidate)
+            val reasoner: OWLReasoner = reasonerFactory.createReasoner(ontology)
+            if (reasoner.isEntailed(unwantedConsequence))
+              axiomJustifications add candidate
+            else {
+              deconstructedAxiom.stream().filter(!candidate.contains(_)).forEach(ax ⇒ {
+                val xn: ELConceptDescription = ELConceptDescription.of(ax.getSubClass())
+                var canBeAdded: Boolean = xn equals x0;
+                if (!canBeAdded) {
+                  canBeAdded = candidate.stream().parallel().filter(bx ⇒ !(bx equals baseAxiom)).anyMatch(bx ⇒ {
+                    val rhs: ELConceptDescription = ELConceptDescription.of(bx.getSuperClass())
+                    rhs.getConceptNames.isEmpty() && (xn equals rhs.getExistentialRestrictions.entries().iterator().next().getValue())
+                  })
+                }
+                if (canBeAdded) {
+                  val newCandidate: java.util.Set[OWLSubClassOfAxiom] = new java.util.HashSet
+                  newCandidate addAll candidate
+                  newCandidate add ax
+                  nextCandidates add newCandidate
+                }
+              })
+            }
+            reasoner.dispose
+            ontologyManager.removeOntology(ontology)
+          })
+        }
+        val nonMinimalAxiomJustifications: java.util.Set[java.util.Set[OWLSubClassOfAxiom]] = Sets.newConcurrentHashSet()
+        axiomJustifications.stream().parallel().forEach(j1 ⇒ {
+          axiomJustifications.stream().parallel().forEach(j2 ⇒ {
+            if (j1.containsAll(j2) && !j2.containsAll(j1))
+              nonMinimalAxiomJustifications add j1
+          })
         })
+        axiomJustifications removeAll nonMinimalAxiomJustifications
+
+        val policy: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet()
+        def construct(c: ELConceptDescription, xm: ELConceptDescription, j: java.util.Set[OWLSubClassOfAxiom]) {
+          j.stream().filter(_.getSubClass() equals xm.toOWLClassExpression()).forEach(ax ⇒ {
+            val atom: ELConceptDescription = ELConceptDescription.of(ax.getSuperClass())
+            if (atom.getConceptNames.size + atom.getExistentialRestrictions.size != 1)
+              throw new RuntimeException("Unexpected value.")
+            if (!atom.getConceptNames.isEmpty)
+              c.getConceptNames.addAll(atom.getConceptNames())
+            else {
+              val er: java.util.Map.Entry[IRI, ELConceptDescription] = atom.getExistentialRestrictions.entries().iterator().next()
+              val r: IRI = er.getKey
+              val xn: ELConceptDescription = er.getValue
+              val d: ELConceptDescription = new ELConceptDescription
+              c.getExistentialRestrictions.put(r, d)
+              construct(d, xn, j)
+            }
+          })
+        }
+        axiomJustifications.stream().parallel().forEach(j ⇒ {
+          val p: ELConceptDescription = new ELConceptDescription
+          construct(p, x0, j)
+          policy add p
+        })
+
+        optimalCompliantGeneralizations(rhs, policy)
       }
-      deconstruct(x0, conclusion)
-      //      System.out.println("Deconstructed axiom:")
-      //      deconstructedAxiom.forEach(System.out println _)
 
-      val axiomJustifications: java.util.Set[java.util.Set[OWLSubClassOfAxiom]] = Sets.newConcurrentHashSet()
-      val nextCandidates: java.util.Set[java.util.Set[OWLSubClassOfAxiom]] = Sets.newConcurrentHashSet()
-      nextCandidates add java.util.Collections.singleton(baseAxiom)
-      while (!nextCandidates.isEmpty()) {
-        val currentCandidates: java.util.Set[java.util.Set[OWLSubClassOfAxiom]] = new java.util.HashSet(nextCandidates)
-        nextCandidates.clear
-        currentCandidates.stream().parallel().forEach(candidate ⇒ {
-          val ontology: OWLOntology = ontologyManager.createOntology()
-          ontologyManager.addAxioms(ontology, staticOntology.getAxioms)
-          ontologyManager.addAxioms(ontology, justification)
-          ontologyManager.removeAxiom(ontology, axiom)
-          ontologyManager.addAxioms(ontology, candidate)
-          val reasoner: OWLReasoner = reasonerFactory.createReasoner(ontology)
-          if (reasoner.isEntailed(unwantedConsequence))
-            axiomJustifications add candidate // we need to minimize here
-          else {
-            deconstructedAxiom.stream().filter(!candidate.contains(_)).forEach(ax ⇒ {
-              val newCandidate: java.util.Set[OWLSubClassOfAxiom] = new java.util.HashSet
-              newCandidate addAll candidate
-              newCandidate add ax
-              nextCandidates add newCandidate
-            })
-          }
-          reasoner.dispose
-          ontologyManager.removeOntology(ontology)
-        })
-      }
-      val nonMinimalAxiomJustifications: java.util.Set[java.util.Set[OWLSubClassOfAxiom]] = Sets.newConcurrentHashSet()
-      axiomJustifications.stream().parallel().forEach(j1 ⇒ {
-        axiomJustifications.stream().parallel().forEach(j2 ⇒ {
-          if (j1.containsAll(j2) && !j2.containsAll(j1))
-            nonMinimalAxiomJustifications add j1
-        })
-      })
-      axiomJustifications removeAll nonMinimalAxiomJustifications
-
-      //      axiomJustifications.forEach(just ⇒ {
-      //        System.out.println()
-      //        System.out.println("Justification:")
-      //        just.forEach(System.out println _)
-      //      })
-
-      val policy: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet()
-      def construct(c: ELConceptDescription, xm: ELConceptDescription, j: java.util.Set[OWLSubClassOfAxiom]) {
-        j.stream().filter(_.getSubClass() equals xm.toOWLClassExpression()).forEach(ax ⇒ {
-          val atom: ELConceptDescription = ELConceptDescription.of(ax.getSuperClass())
-          if (atom.getConceptNames.size + atom.getExistentialRestrictions.size != 1)
-            throw new RuntimeException("Unexpected value.")
-          if (!atom.getConceptNames.isEmpty)
-            c.getConceptNames.addAll(atom.getConceptNames())
-          else {
-            val er: java.util.Map.Entry[IRI, ELConceptDescription] = atom.getExistentialRestrictions.entries().iterator().next()
-            val r: IRI = er.getKey
-            val xn: ELConceptDescription = er.getValue
-            val d: ELConceptDescription = new ELConceptDescription
-            c.getExistentialRestrictions.put(r, d)
-            construct(d, xn, j)
-          }
-        })
-      }
-      axiomJustifications.stream().parallel().forEach(j ⇒ {
-        val p: ELConceptDescription = new ELConceptDescription
-        construct(p, x0, j)
-        policy add p
-      })
-
-      //      System.out.println()
-      //      System.out.println("Policy:")
-      //      policy.forEach(System.out println _.toShortString())
-
-      val scgs: java.util.Set[ELConceptDescription] = specificCompliantGeneralizations(conclusion, policy)
       val weakenings: java.util.Set[OWLAxiom] = Sets.newConcurrentHashSet()
-      scgs.forEach(scg ⇒ {
-        val weakening: OWLAxiom = new ELConceptInclusion(premise, scg).toOWLSubClassOfAxiom()
-        val ontology: OWLOntology = ontologyManager.createOntology
-        ontologyManager.addAxioms(ontology, staticOntology.getAxioms)
-        ontologyManager.addAxioms(ontology, justification)
-        ontologyManager.removeAxiom(ontology, axiom)
-        ontologyManager.addAxiom(ontology, weakening)
+      val nextCandidates: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet()
+      nextCandidates add conclusion
+      while (!nextCandidates.isEmpty()) {
+        val currentCandidates: java.util.Set[ELConceptDescription] = new java.util.HashSet
+        currentCandidates addAll nextCandidates
+        nextCandidates removeAll currentCandidates
+        currentCandidates.stream().parallel().forEach(candidate ⇒ {
+          println("processing candidate: " + candidate.toShortString())
+          val ocgs: java.util.Set[ELConceptDescription] = iterate(candidate)
+          ocgs.forEach(ocg ⇒ {
+            val weakening: OWLAxiom = new ELConceptInclusion(premise, ocg).toOWLSubClassOfAxiom()
+            val ontology: OWLOntology = ontologyManager.createOntology
+            ontologyManager.addAxioms(ontology, staticOntology.getAxioms)
+            ontologyManager.addAxioms(ontology, justification)
+            ontologyManager.removeAxiom(ontology, axiom)
+            ontologyManager.addAxiom(ontology, weakening)
+            val reasoner: OWLReasoner = reasonerFactory createReasoner ontology
+            if (reasoner isEntailed unwantedConsequence)
+              nextCandidates add ocg
+            else
+              weakenings add weakening
+            reasoner dispose ()
+            ontologyManager removeOntology ontology
+          })
+        })
+      }
+
+      val nonMinimalWeakenings: java.util.Set[OWLAxiom] = Sets.newConcurrentHashSet()
+      val order: MatrixRelation[OWLAxiom, OWLAxiom] = new MatrixRelation(true)
+      order.rowHeads().addAll(weakenings)
+      weakenings.stream().parallel().forEach(weakening1 ⇒ {
+        val ontology: OWLOntology = ontologyManager createOntology java.util.Collections.singleton(weakening1)
         val reasoner: OWLReasoner = reasonerFactory createReasoner ontology
-        if (!(reasoner isEntailed unwantedConsequence))
-          weakenings add weakening
-        reasoner dispose ()
+        weakenings.stream().sequential().forEach(weakening2 ⇒ {
+          if (!(weakening1 equals weakening2))
+            if (reasoner isEntailed weakening2)
+              order.add(weakening1, weakening2)
+        })
+        reasoner.dispose()
         ontologyManager removeOntology ontology
+        System.gc()
       })
+      weakenings.stream().parallel().forEach(weakening2 ⇒ {
+        val ontology: OWLOntology = ontologyManager createOntology java.util.Collections.singleton(weakening2)
+        val reasoner: OWLReasoner = reasonerFactory createReasoner ontology
+        order.col(weakening2).stream().sequential().forEach(weakening1 ⇒ {
+          if (!(weakening1 equals weakening2))
+            if (!(reasoner isEntailed weakening1))
+              nonMinimalWeakenings add weakening2
+        })
+        reasoner.dispose()
+        ontologyManager removeOntology ontology
+        System.gc()
+      })
+      weakenings removeAll nonMinimalWeakenings
+
+      println("computation time of method 4: " + timer.measureAndFormat())
+
       System.out.println()
       System.out.println("Weakened Axioms:")
       weakenings.forEach(ax ⇒ println("\r\n" + ax))
@@ -379,6 +434,17 @@ object OWLAxiomWeakeningRelation {
   //  def subsetOfByPredicate[T](predicate: (T, T) ⇒ Boolean, set1: Set[T], set2: Set[T]): Boolean = {
   //    set1.forall(x ⇒ set2.exists(y ⇒ predicate(x, y)))
   //  }
+
+  def optimalCompliantGeneralizations(concept: ELConceptDescription, policy: java.util.Set[ELConceptDescription]): java.util.Set[ELConceptDescription] = {
+    val optimalCGS: java.util.Set[ELConceptDescription] = specificCompliantGeneralizations(concept, policy)
+    val nonOptimalCGS: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet()
+    optimalCGS.stream().parallel().forEach(x ⇒
+      optimalCGS.stream().parallel().forEach(y ⇒
+        if (!(x equals y) && (x compareTo y) == 1)
+          nonOptimalCGS add x))
+    optimalCGS removeAll nonOptimalCGS
+    optimalCGS
+  }
 
   def specificCompliantGeneralizations(concept: ELConceptDescription, policy: java.util.Set[ELConceptDescription]): java.util.Set[ELConceptDescription] = {
     val _concept: ELConceptDescription = concept.clone.reduce
@@ -424,6 +490,7 @@ object OWLAxiomWeakeningRelation {
             .forEach(scg.getExistentialRestrictions.put(role, _))
         }
       })
+      scg.reduce()
       scgs add scg
     })
     //    var str: String = "concept: " + concept.toShortString() + "\r\n"
