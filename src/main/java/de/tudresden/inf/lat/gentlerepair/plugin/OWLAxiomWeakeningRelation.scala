@@ -41,6 +41,12 @@ object OWLAxiomWeakeningRelation {
     (_1, _2, _3, _4, _5, _6) ⇒ java.util.Collections.emptySet()
 
   def semanticELConceptInclusionWeakeningRelation(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
+    nthELConceptInclusionWeakeningRelation3(java.lang.Integer.MAX_VALUE, dataFactory)
+
+  def syntacticELConceptInclusionWeakeningRelation(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
+    nthELConceptInclusionWeakeningRelation3(1, dataFactory)
+
+  def nthELConceptInclusionWeakeningRelation(n: Integer, dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
     (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
       if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
         throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
@@ -51,7 +57,7 @@ object OWLAxiomWeakeningRelation {
       val subClassOfAxiom: OWLSubClassOfAxiom = axiom.asInstanceOf[OWLSubClassOfAxiom]
       val conclusion: ELConceptDescription = ELConceptDescription.of(subClassOfAxiom.getSuperClass())
       val weakenings: java.util.Set[OWLAxiom] = Sets.newConcurrentHashSet()
-      val nextCandidates: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet(conclusion.upperNeighborsReduced())
+      val nextCandidates: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet(conclusion.upperNNeighborsReduced(n))
       while (!nextCandidates.isEmpty()) {
         val processedCandidates: java.util.Set[ELConceptDescription] = new java.util.HashSet(nextCandidates)
         nextCandidates.parallelStream().forEach(candidate ⇒ {
@@ -63,7 +69,7 @@ object OWLAxiomWeakeningRelation {
             ontologyManager.addAxiom(weakenedOntology, weakenedAxiom)
             val reasoner: OWLReasoner = reasonerFactory.createReasoner(weakenedOntology)
             if (reasoner.isEntailed(unwantedConsequence))
-              nextCandidates.addAll(candidate.upperNeighborsReduced())
+              nextCandidates.addAll(candidate.upperNNeighborsReduced(n))
             else
               weakenings.add(weakenedAxiom)
             reasoner.dispose()
@@ -101,7 +107,7 @@ object OWLAxiomWeakeningRelation {
       weakenings
     }
 
-  def semanticELConceptInclusionWeakeningRelation2(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
+  def nthELConceptInclusionWeakeningRelation2(n: Integer, dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
     (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
       if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
         throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
@@ -112,7 +118,7 @@ object OWLAxiomWeakeningRelation {
       val subClassOfAxiom: OWLSubClassOfAxiom = axiom.asInstanceOf[OWLSubClassOfAxiom]
       val conclusion: ELConceptDescription = ELConceptDescription.of(subClassOfAxiom.getSuperClass())
       val weakenings: java.util.Set[OWLAxiom] = Sets.newConcurrentHashSet()
-      val nextCandidates: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet(conclusion.upperNeighborsReduced())
+      val nextCandidates: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet(conclusion.upperNNeighborsReduced(n))
       while (!nextCandidates.isEmpty()) {
         val processedCandidates: java.util.Set[ELConceptDescription] = new java.util.HashSet(nextCandidates)
         nextCandidates.parallelStream().forEach(candidate ⇒ {
@@ -124,7 +130,7 @@ object OWLAxiomWeakeningRelation {
             ontologyManager.addAxiom(weakenedOntology, weakenedAxiom)
             val reasoner: OWLReasoner = reasonerFactory.createReasoner(weakenedOntology)
             if (reasoner.isEntailed(unwantedConsequence))
-              nextCandidates.addAll(candidate.upperNeighborsReduced())
+              nextCandidates.addAll(candidate.upperNNeighborsReduced(n))
             else
               weakenings.add(weakenedAxiom)
             reasoner.dispose()
@@ -167,12 +173,12 @@ object OWLAxiomWeakeningRelation {
       weakenings
     }
 
-  def semanticELConceptInclusionWeakeningRelation3(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
+  def nthELConceptInclusionWeakeningRelation3(n: Integer, dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
     (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
       if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
         throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
 
-      val timer: Meter[java.lang.Long] = Meter.newNanoStopWatch
+      //      val timer: Meter[java.lang.Long] = Meter.newNanoStopWatch
 
       val baseAxioms: java.util.Set[OWLAxiom] = Sets.newConcurrentHashSet()
       baseAxioms.addAll(staticOntology.getAxioms())
@@ -181,7 +187,7 @@ object OWLAxiomWeakeningRelation {
       val subClassOfAxiom: OWLSubClassOfAxiom = axiom.asInstanceOf[OWLSubClassOfAxiom]
       val conclusion: ELConceptDescription = ELConceptDescription.of(subClassOfAxiom.getSuperClass())
       val weakenedRHS: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet()
-      val nextCandidates: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet(conclusion.upperNeighborsReduced())
+      val nextCandidates: java.util.Set[ELConceptDescription] = Sets.newConcurrentHashSet(conclusion.upperNNeighborsReduced(n))
       while (!nextCandidates.isEmpty()) {
         val processedCandidates: java.util.Set[ELConceptDescription] = new java.util.HashSet(nextCandidates)
         nextCandidates.parallelStream().forEach(candidate ⇒ {
@@ -193,7 +199,7 @@ object OWLAxiomWeakeningRelation {
             ontologyManager.addAxiom(weakenedOntology, weakenedAxiom)
             val reasoner: OWLReasoner = reasonerFactory.createReasoner(weakenedOntology)
             if (reasoner.isEntailed(unwantedConsequence))
-              nextCandidates.addAll(candidate.upperNeighborsReduced())
+              nextCandidates.addAll(candidate.upperNNeighborsReduced(n))
             else
               weakenedRHS add candidate
             reasoner.dispose()
@@ -249,15 +255,15 @@ object OWLAxiomWeakeningRelation {
       })
       weakenings.removeAll(nonMinimalWeakenings)
 
-      println("computation time of method 3: " + timer.measureAndFormat())
-
-      val weakenings4: java.util.Set[OWLAxiom] = semanticELConceptInclusionWeakeningRelation4(dataFactory).getWeakenings(ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence)
-      println()
-      println("same weakenings found: " + ((weakenings containsAll weakenings4) && (weakenings4 containsAll weakenings)))
-      println("\r\nweakenings only found by method number 3:")
-      Sets.difference(weakenings, weakenings4).forEach(ax ⇒ println("\r\n" + ax))
-      println("\r\nweakenings only found by method number 4:")
-      Sets.difference(weakenings4, weakenings).forEach(ax ⇒ println("\r\n" + ax))
+      //      println("computation time of method 3: " + timer.measureAndFormat())
+      //
+      //      val weakenings4: java.util.Set[OWLAxiom] = semanticELConceptInclusionWeakeningRelation4(dataFactory).getWeakenings(ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence)
+      //      println()
+      //      println("same weakenings found: " + ((weakenings containsAll weakenings4) && (weakenings4 containsAll weakenings)))
+      //      println("\r\nweakenings only found by method number 3:")
+      //      Sets.difference(weakenings, weakenings4).forEach(ax ⇒ println("\r\n" + ax))
+      //      println("\r\nweakenings only found by method number 4:")
+      //      Sets.difference(weakenings4, weakenings).forEach(ax ⇒ println("\r\n" + ax))
 
       weakenings
     }
@@ -267,7 +273,7 @@ object OWLAxiomWeakeningRelation {
       if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
         throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
 
-      val timer: Meter[java.lang.Long] = Meter.newNanoStopWatch
+      //      val timer: Meter[java.lang.Long] = Meter.newNanoStopWatch
 
       val subClassOfAxiom: OWLSubClassOfAxiom = axiom.asInstanceOf[OWLSubClassOfAxiom]
       val premise: ELConceptDescription = ELConceptDescription.of(subClassOfAxiom.getSubClass)
@@ -421,12 +427,12 @@ object OWLAxiomWeakeningRelation {
       })
       weakenings removeAll nonMinimalWeakenings
 
-      println("computation time of method 4: " + timer.measureAndFormat())
-
-      System.out.println()
-      System.out.println("Weakened Axioms:")
-      weakenings.forEach(ax ⇒ println("\r\n" + ax))
-      println("\r\ndone.")
+      //      println("computation time of method 4: " + timer.measureAndFormat())
+      //
+      //      System.out.println()
+      //      System.out.println("Weakened Axioms:")
+      //      weakenings.forEach(ax ⇒ println("\r\n" + ax))
+      //      println("\r\ndone.")
 
       weakenings
     }
@@ -528,13 +534,5 @@ object OWLAxiomWeakeningRelation {
       sets.foldLeft(seed)(foldFunction)
     }
   }
-
-  def syntacticELConceptInclusionWeakeningRelation(dataFactory: OWLDataFactory): OWLAxiomWeakeningRelation =
-    (ontologyManager, reasonerFactory, staticOntology, justification, axiom, unwantedConsequence) ⇒ {
-      if (!axiom.getAxiomType().equals(AxiomType.SUBCLASS_OF))
-        throw new IllegalArgumentException("Currently, only concept inclusions are supported.")
-      val subClassOfAxiom: OWLSubClassOfAxiom = axiom.asInstanceOf[OWLSubClassOfAxiom]
-      throw new RuntimeException("To be implemented.")
-    }
 
 }

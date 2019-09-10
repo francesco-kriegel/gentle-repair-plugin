@@ -43,6 +43,7 @@ import javax.swing.JProgressBar
 import javax.swing.JScrollPane
 import javax.swing.ListSelectionModel
 import javax.swing.SwingConstants
+import java.util.HashSet
 
 @SerialVersionUID(-835105430620103724L)
 class GentleRepairViewComponent extends AbstractOWLViewComponent {
@@ -318,7 +319,7 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
           weakeningRelation
             .set(
               OWLAxiomWeakeningRelation
-                .semanticELConceptInclusionWeakeningRelation3(getOWLDataFactory()))
+                .semanticELConceptInclusionWeakeningRelation(getOWLDataFactory()))
           axiomFromJustificationSelector.set(Util.randomSelector)
           axiomFromWeakeningsSelector.set(Util.randomSelector)
         // break
@@ -326,12 +327,25 @@ class GentleRepairViewComponent extends AbstractOWLViewComponent {
           weakeningRelation
             .set(
               OWLAxiomWeakeningRelation
-                .semanticELConceptInclusionWeakeningRelation3(getOWLDataFactory()))
+                .semanticELConceptInclusionWeakeningRelation(getOWLDataFactory()))
+          axiomFromJustificationSelector.set(axiomSelector("Selection an axiom from the below justification.", uiPanel))
+          axiomFromWeakeningsSelector.set(axiomSelector("Selection a weakened axiom from the below list.", uiPanel))
+        case RepairType.MODIFIED_GENTLE_REPAIR_SYNTACTIC_RANDOM ⇒
+          weakeningRelation
+            .set(
+              OWLAxiomWeakeningRelation
+                .syntacticELConceptInclusionWeakeningRelation(getOWLDataFactory()))
+          axiomFromJustificationSelector.set(Util.randomSelector)
+          axiomFromWeakeningsSelector.set(Util.randomSelector)
+        // break
+        case RepairType.MODIFIED_GENTLE_REPAIR_SYNTACTIC_USER ⇒
+          weakeningRelation
+            .set(
+              OWLAxiomWeakeningRelation
+                .syntacticELConceptInclusionWeakeningRelation(getOWLDataFactory()))
           axiomFromJustificationSelector.set(axiomSelector("Selection an axiom from the below justification.", uiPanel))
           axiomFromWeakeningsSelector.set(axiomSelector("Selection a weakened axiom from the below list.", uiPanel))
         // break
-        // case RepairType.MODIFIED_GENTLE_REPAIR_SYNTACTIC_RANDOM | RepairType.MODIFIED_GENTLE_REPAIR_SYNTACTIC_USER | RepairType.INTERACTIVE_GENTLE_REPAIR =>
-        // throw new RuntimeException("Not implemented")
       }
       new Thread(() ⇒ {
         try {
