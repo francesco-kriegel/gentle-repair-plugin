@@ -1,0 +1,27 @@
+Prefix(:=<urn:example-KR2018-introduction#>)
+Prefix(owl:=<http://www.w3.org/2002/07/owl#>)
+Prefix(rdf:=<http://www.w3.org/1999/02/22-rdf-syntax-ns#>)
+Prefix(xml:=<http://www.w3.org/XML/1998/namespace>)
+Prefix(xsd:=<http://www.w3.org/2001/XMLSchema#>)
+Prefix(rdfs:=<http://www.w3.org/2000/01/rdf-schema#>)
+
+
+Ontology(<urn:example-KR2018-introduction>
+
+Declaration(Class(:Professor))
+Declaration(Class(:Student))
+Declaration(Class(:University))
+Declaration(ObjectProperty(:isEmployedBy))
+Declaration(ObjectProperty(:isEnrolledAt))
+
+############################
+#   Classes
+############################
+
+# Class: :Professor (:Professor)
+
+SubClassOf(:Professor ObjectIntersectionOf(ObjectSomeValuesFrom(:isEmployedBy :University) ObjectSomeValuesFrom(:isEnrolledAt :University)))
+
+
+SubClassOf(ObjectSomeValuesFrom(:isEnrolledAt :University) :Student)
+)
